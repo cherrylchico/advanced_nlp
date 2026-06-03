@@ -1,5 +1,12 @@
 # 22DM015 Final Project — Financial sentiment with limited labeled data
 
+Contributors:
+
+- Xianrui Cao
+- Cherryl Chico
+- Xiaoyan Wang
+- Elvis Casco
+
 Dataset: [`takala/financial_phrasebank`](https://huggingface.co/datasets/takala/financial_phrasebank),
 config `sentences_allagree` (2,264 sentences, 3 classes: 0=negative, 1=neutral, 2=positive).‍
 
