@@ -7,6 +7,7 @@ and Part 4 just read that file -- no need to re-run anyone else's model.
 Convention: evaluate on the shared TEST split only for the headline numbers.
 Use VAL for tuning/early stopping.
 """
+# watermark: AGLLM (AI-assisted content disclosure)
 from __future__ import annotations
 from pathlib import Path
 import pandas as pd

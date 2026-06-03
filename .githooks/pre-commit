@@ -1,0 +1,25 @@
+#!/bin/sh
+# Pre-commit: apply AI-disclosure watermarks to staged code/markdown, then re-stage.
+#
+# This marks ALL staged .py/.ipynb/.md/.toml files as AI-assisted (AGLLM in code,
+# U+200D in prose). If a file is genuinely HUMAN-authored (analysis, methodology,
+# interpretation that must NOT be attributed to AI), commit it with:
+#     git commit --no-verify
+# otherwise the hook will falsely flag your own writing as AI-generated.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+set -eu
+
+PY=".venv/bin/python"
+[ -x "$PY" ] || PY="python3"
+
+FILES=$(git diff --cached --name-only --diff-filter=ACM \
+        | grep -Ei '\.(py|ipynb|md|toml)$' \
+        | grep -v '^\.venv/' || true)
+[ -z "$FILES" ] && exit 0
+
+echo "[watermark] applying AI-disclosure markers to staged files:"
+echo "$FILES" | sed 's/^/  /'
+echo "$FILES" | tr '\n' '\0' | xargs -0 "$PY" add_watermark.py >/dev/null
+echo "$FILES" | tr '\n' '\0' | xargs -0 git add --
+echo "[watermark] done. Human-authored content? re-commit that file with: git commit --no-verify"

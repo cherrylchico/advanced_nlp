@@ -1,3 +1,4 @@
+# watermark: AGLLM (AI-assisted content disclosure)
 [project]
 name = "advanced-nlp-finphrasebank"
 version = "0.1.0"
