@@ -1,0 +1,41 @@
+[project]
+name = "advanced-nlp-finphrasebank"
+version = "0.1.0"
+description = "22DM015 Final Project — Financial sentiment with limited labeled data"
+requires-python = ">=3.11,<3.13"
+
+dependencies = [
+    # --- shared data + eval (all notebooks) ---
+    "datasets>=3.0",
+    "huggingface-hub>=0.25",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "pyarrow>=16",
+    "numpy>=1.26",
+    "scipy>=1.13",
+
+    # --- running the notebooks + plots ---
+    "jupyterlab>=4.2",
+    "ipykernel>=6.29",
+    "ipywidgets>=8.1",
+    "matplotlib>=3.9",
+
+    # --- BERT track (Person B) + distillation (Person D, Part 4) ---
+    "torch>=2.3",
+    "transformers>=4.44",
+    "accelerate>=0.33",
+    "optimum>=1.21",          # ONNX export / quantization for Part 4 on CPU/Mac
+
+    # --- non-LLM augmentation (Person D, Part 2b) ---
+    "nltk>=3.9",              # EDA-style synonym/insert/swap/delete
+    "sentencepiece>=0.2",     # MarianMT back-translation tokenizer
+    "sacremoses>=0.1",        # MarianMT detokenization
+
+    # --- zero-shot + LLM generation (Person C, Person D Part 2d) ---
+    "anthropic>=0.34",        # Claude
+    "openai>=1.40",           # optional alternative provider
+    "python-dotenv>=1.0",     # load API keys from a .env file
+]
+
+[tool.uv]
+package = false               # data_utils.py / eval_utils.py are imported via sys.path, not installed
