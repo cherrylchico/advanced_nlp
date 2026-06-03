@@ -8,7 +8,7 @@ Data contract
 -------------
 - Source : takala/financial_phrasebank, config "sentences_allagree" (2264 sents).
 - Labels : 0=negative, 1=neutral, 2=positive  (same order as the HF features).
-- Split  : stratified train/val/test = 70/10/20, SEED=42.
+- Split  : stratified train/val/test = 70/10/20, SEED=618.
 - 32-shot: balanced sample from TRAIN only -> 11 negative / 10 neutral / 11 positive.
 - The "unlabelled pool" for Part 2 = train rows NOT in labeled_32 (use `unlabeled_pool()`).
 - Part 3 percentage curves = `subset_by_fraction(train, frac)`, nested & stratified.
@@ -18,7 +18,7 @@ import zipfile
 from pathlib import Path
 import pandas as pd
 
-SEED = 42
+SEED = 618
 CONFIG = "sentences_allagree"
 LABEL_NAMES = ["negative", "neutral", "positive"]   # index == label id
 NAME2ID = {n: i for i, n in enumerate(LABEL_NAMES)}

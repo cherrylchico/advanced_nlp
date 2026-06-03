@@ -54,7 +54,7 @@ SETUP = lambda person: code(
     "# --- Reproducibility seed (required by the assignment) ---",
     "import os, random, sys",
     "import numpy as np",
-    "SEED = 42",
+    "SEED = 618",
     "random.seed(SEED); np.random.seed(SEED)",
     "os.environ['PYTHONHASHSEED'] = str(SEED)",
     "",
@@ -207,7 +207,7 @@ D = notebook([
        "CSVs under `data/` that A/B/C consume. Commit those CSVs so everyone is byte-identical."),
     SETUP("D"),
     md("## 0. Build the shared splits (run once, then commit `data/`)",
-       "Stratified 70/10/20 with SEED=42; balanced 32-shot (11 neg / 10 neu / 11 pos) from train. "
+       "Stratified 70/10/20 with SEED=618; balanced 32-shot (11 neg / 10 neu / 11 pos) from train. "
        "Logic lives in `data_utils.build_splits()` so it's auditable and reproducible."),
     code("# Regenerate the canonical CSVs. Safe to re-run: deterministic given SEED.",
          "splits = du.build_splits()",

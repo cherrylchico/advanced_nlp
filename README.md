@@ -13,7 +13,7 @@ notebooks/        # one template per person
 ```
 
 ## The shared data contract (decided by Person D)
-- **Splits:** stratified **70/10/20** train/val/test, `SEED=42`. Sizes: train 1584, val 227, test 453.
+- **Splits:** stratified **70/10/20** train/val/test, `SEED=618`. Sizes: train 1584, val 227, test 453.
 - **32-shot:** balanced sample from *train only* — **11 negative / 10 neutral / 11 positive**.
 - **Why files, not just a seed:** a seed is reproducible within one notebook, but across 4 people /
   machines / library versions shuffle behavior drifts. The CSVs in `data/` are the source of truth;
