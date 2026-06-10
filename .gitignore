@@ -6,3 +6,6 @@ __pycache__/
 # HF cache lives in ~/.cache by default; ignore any local copy
 .cache/
 # DO commit data/ and results/ — they are the shared contract.
+
+
+notes/
