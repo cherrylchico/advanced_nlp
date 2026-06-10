@@ -74,7 +74,7 @@ def watermark_code(src: str) -> str:
 
 
 def process_notebook(path: Path) -> dict:
-    nb = json.loads(path.read_text())
+    nb = json.loads(path.read_text(encoding="utf-8"))
     md_cells = code_cells = 0
     for cell in nb.get("cells", []):
         src = "".join(cell.get("source", []))
@@ -87,17 +87,17 @@ def process_notebook(path: Path) -> dict:
         else:
             continue
         cell["source"] = new.splitlines(keepends=True) or [""]
-    path.write_text(json.dumps(nb, indent=1))
+    path.write_text(json.dumps(nb, indent=1), encoding="utf-8")
     return {"markdown_cells": md_cells, "code_cells": code_cells}
 
 
 def process_text_file(path: Path) -> str:
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     if path.suffix == ".md":
-        path.write_text(watermark_markdown(text))
+        path.write_text(watermark_markdown(text), encoding="utf-8")
         return "markdown"
     if path.suffix in {".py", ".toml", ".cfg"}:
-        path.write_text(watermark_code(text))
+        path.write_text(watermark_code(text), encoding="utf-8")
         return "code"
     return "skipped"
 
@@ -116,7 +116,7 @@ def iter_targets(paths):
 
 def check(paths) -> None:
     for f in iter_targets(paths):
-        raw = f.read_text()
+        raw = f.read_text(encoding="utf-8")
         if f.suffix == ".ipynb":
             raw = "".join("".join(c.get("source", []))
                           for c in json.loads(raw).get("cells", []))
