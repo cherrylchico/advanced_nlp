@@ -51,6 +51,31 @@ def log_result(model: str, method: str, n_train_labeled, metrics: dict,
            "split": split, "n_train_labeled": n_train_labeled, **metrics, "notes": notes}
     df = pd.read_csv(path) if path.exists() else pd.DataFrame()
     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-    df = df.drop_duplicates(subset=["person", "model", "method", "split"], keep="last")
+    # An empty key field round-trips through CSV as NaN, which would not match the
+    # "" of a fresh row and the upsert would duplicate instead of replace.
+    key_cols = ["person", "model", "method", "split"]
+    df[key_cols] = df[key_cols].fillna("")
+    df = df.drop_duplicates(subset=key_cols, keep="last")
     df.to_csv(path, index=False)
     return df
+
+
+def latest_result(person: str, model: str, method: str, split: str = "test",
+                  full_row: bool = False, path: Path | str = RESULTS_CSV):
+    """Latest results.csv row for (person, model, method, split) — metrics dict,
+    full row (`full_row=True`), or None. This is what makes the notebooks
+    resume-aware: delete a row from results.csv to force that experiment to re-run."""
+    path = Path(path)
+    if not path.exists():
+        return None
+    r = pd.read_csv(path)
+    r = r[(r["person"] == person) & (r["model"] == model)
+          & (r["method"] == method) & (r["split"] == split)]
+    if not len(r):
+        return None
+    return r.iloc[-1] if full_row else {k: r.iloc[-1][k] for k in METRIC_KEYS}
+
+
+def fmt(metrics: dict) -> dict:
+    """Round a metrics dict for printing."""
+    return {k: round(float(v), 4) for k, v in metrics.items()}
