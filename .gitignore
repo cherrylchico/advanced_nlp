@@ -9,3 +9,8 @@ __pycache__/
 
 
 notes/
+
+# API keys / secrets — NEVER commit
+groq_api_key.txt
+*.key
+.env
