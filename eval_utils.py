@@ -13,6 +13,7 @@ from pathlib import Path
 import pandas as pd
 
 LABEL_NAMES = ["negative", "neutral", "positive"]
+METRIC_KEYS = ["accuracy", "f1_macro", "f1_weighted"] + [f"f1_{n}" for n in LABEL_NAMES]
 RESULTS_CSV = Path(__file__).resolve().parent / "results" / "results.csv"
 
 
@@ -34,11 +35,15 @@ def evaluate(y_true, y_pred) -> dict:
 def log_result(model: str, method: str, n_train_labeled, metrics: dict,
                split: str = "test", person: str = "", notes: str = "",
                path: Path | str = RESULTS_CSV) -> pd.DataFrame:
-    """Append one result row to results/results.csv and return the full table.
+    """Log one result row to results/results.csv and return the full table.
 
     model            e.g. 'bert-base-uncased', 'rule-based', 'claude-zero-shot'
     method           e.g. '32-shot', 'augmented', 'llm-generated', 'full-100%'
     n_train_labeled  number of labelled training examples used (32, 1584, ...)
+
+    Upsert semantics: re-logging the same (person, model, method, split) replaces
+    the previous row instead of appending a duplicate, so notebooks can be re-run
+    freely (results.csv once accumulated triplicate rows and had to be hand-deduped).
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,5 +51,6 @@ def log_result(model: str, method: str, n_train_labeled, metrics: dict,
            "split": split, "n_train_labeled": n_train_labeled, **metrics, "notes": notes}
     df = pd.read_csv(path) if path.exists() else pd.DataFrame()
     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+    df = df.drop_duplicates(subset=["person", "model", "method", "split"], keep="last")
     df.to_csv(path, index=False)
     return df
