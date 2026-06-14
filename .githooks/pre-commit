@@ -11,10 +11,11 @@
 set -eu
 
 PY=".venv/bin/python"
-[ -x "$PY" ] || PY="python3"
+[ -x "$PY" ] || PY=".venv/Scripts/python.exe"   # Windows uv venv layout
+[ -x "$PY" ] || PY="$(command -v python3 || command -v python)"
 
 FILES=$(git diff --cached --name-only --diff-filter=ACM \
-        | grep -Ei '\.(py|ipynb|md|toml)$' \
+        | grep -Ei '\.(py|ipynb|md|toml|cfg)$' \
         | grep -v '^\.venv/' || true)
 [ -z "$FILES" ] && exit 0
 

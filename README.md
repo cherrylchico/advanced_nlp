@@ -13,10 +13,11 @@ config `sentences_allagree` (2,264 sentences, 3 classes: 0=negative, 1=neutral, 
 ## Repo layout
 ```
 data_utils.py     # canonical loader + split logic (Person D owns)
-eval_utils.py     # shared evaluate() + log_result() -> results/results.csv
+eval_utils.py     # shared evaluate() + log_result()/latest_result() -> results/results.csv
 data/             # COMMITTED shared splits (train/val/test/labeled_32) — do not re-split
 results/          # results.csv, the merged scoreboard for Part 3/4 (created on first log)
-notebooks/        # one template per person
+notebooks/        # one notebook per person (full implementations)
+.cache/           # throwaway training output (ignored) + llm_responses_*.csv (COMMITTED)
 ```
 
 ## The shared data contract (decided by Person D)
@@ -40,6 +41,19 @@ Use Python 3.11–3.12, not 3.14 (no torch wheels there yet).‍
 1.‍ Person D runs `notebooks/dataprep_aug.ipynb` → regenerates & commits `data/`.‍
 2.‍ A/B/C load via `du.load_splits()` and report metrics with `eu.log_result(...)`.‍
 3.‍ Part 3/4 read `results/results.csv` to compare every model on the same test set.‍
+
+## Reproducibility
+The notebooks are RESUME-AWARE: every experiment cell first checks `results/results.csv`
+(via `eu.latest_result`) and prints `[cached]` instead of recomputing, so Run All on a
+fresh clone is a fast read-back, not a recomputation.‍ To verify any number from scratch,
+delete its row from `results/results.csv` and re-run the notebook.‍
+- BERT rows: seeded (`SEED=618`) and bit-reproducible on the machine that trained them;
+  cross-machine agreement is approximate (thread count / BLAS differences), which is why
+  the result artifacts are committed — same rationale as committing the data splits.‍
+- Claude rows (`zero-shot`/`few-shot`): LLM APIs are nondeterministic and the model
+  accepts no sampling parameters, so the committed `.cache/llm_responses_*.csv` is the
+  exact-reproduction artifact — re-running uses it and needs no API key.‍ Fresh API runs
+  need `ANTHROPIC_API_KEY` in the environment (never committed; `.env` is gitignored).‍
 
 ## AI-use disclosure (watermarking)
 The course requires AI-assisted code/text to be disclosed and watermarked.‍ This repo uses
