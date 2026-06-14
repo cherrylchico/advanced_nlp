@@ -3,8 +3,14 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .DS_Store
-# HF cache lives in ~/.cache by default; ignore any local copy
-.cache/
+# API keys / local secrets — never commit
+.env
+.env.*
+# .cache/ holds throwaway training output dirs (bert_*/) — ignored — EXCEPT the
+# LLM response cache, which is committed: it is the exact-reproduction artifact
+# for the Claude rows in results.csv (no API key or nondeterminism needed).
+.cache/*
+!.cache/llm_responses_*.csv
 # DO commit data/ and results/ — they are the shared contract.
 
 

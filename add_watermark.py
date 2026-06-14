@@ -27,7 +27,7 @@ import re
 import sys
 from pathlib import Path
 
-ZWJ = "‍"
+ZWJ = "\u200d"  # zero-width joiner (invisible) — escape form so the value is reviewable
 AGLLM = "AGLLM"
 AGLLM_COMMENT = f"# watermark: {AGLLM} (AI-assisted content disclosure)"
 
@@ -76,6 +76,7 @@ def watermark_code(src: str) -> str:
 def process_notebook(path: Path) -> dict:
     nb = json.loads(path.read_text(encoding="utf-8"))
     md_cells = code_cells = 0
+    changed = False
     for cell in nb.get("cells", []):
         src = "".join(cell.get("source", []))
         if cell.get("cell_type") == "markdown":
@@ -86,20 +87,27 @@ def process_notebook(path: Path) -> dict:
             code_cells += 1
         else:
             continue
-        cell["source"] = new.splitlines(keepends=True) or [""]
-    path.write_text(json.dumps(nb, indent=1), encoding="utf-8")
-    return {"markdown_cells": md_cells, "code_cells": code_cells}
+        if new != src:
+            cell["source"] = new.splitlines(keepends=True) or [""]
+            changed = True
+    if changed:                       # byte-idempotent: untouched notebooks are not rewritten
+        path.write_text(json.dumps(nb, indent=1), encoding="utf-8")
+    return {"markdown_cells": md_cells, "code_cells": code_cells, "changed": changed}
 
 
 def process_text_file(path: Path) -> str:
     text = path.read_text(encoding="utf-8")
     if path.suffix == ".md":
-        path.write_text(watermark_markdown(text), encoding="utf-8")
-        return "markdown"
-    if path.suffix in {".py", ".toml", ".cfg"}:
-        path.write_text(watermark_code(text), encoding="utf-8")
-        return "code"
-    return "skipped"
+        new = watermark_markdown(text)
+        kind = "markdown"
+    elif path.suffix in {".py", ".toml", ".cfg"}:
+        new = watermark_code(text)
+        kind = "code"
+    else:
+        return "skipped"
+    if new != text:
+        path.write_text(new, encoding="utf-8")
+    return kind
 
 
 def iter_targets(paths):

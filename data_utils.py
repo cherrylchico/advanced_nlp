@@ -11,7 +11,8 @@ Data contract
 - Split  : stratified train/val/test = 70/10/20, SEED=618.
 - 32-shot: balanced sample from TRAIN only -> 11 negative / 10 neutral / 11 positive.
 - The "unlabelled pool" for Part 2 = train rows NOT in labeled_32 (use `unlabeled_pool()`).
-- Part 3 percentage curves = `subset_by_fraction(train, frac)`, nested & stratified.
+- Part 3 percentage curves = `subset_by_fraction(train, frac)`, stratified; each
+  fraction is sampled independently with the same seed (NOT nested — see docstring).
 """
 # watermark: AGLLM (AI-assisted content disclosure)
 from __future__ import annotations
