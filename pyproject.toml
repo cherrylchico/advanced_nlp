@@ -33,8 +33,10 @@ dependencies = [
     "sacremoses>=0.1",        # MarianMT detokenization
 
     # --- zero-shot + LLM generation (Person C, Person D Part 2d) ---
-    "anthropic>=0.34",        # Claude
-    "openai>=1.40",           # optional alternative provider
+    "groq>=0.11",             # Groq (free tier, open models) — used for Part 2d generation
+    "google-genai>=0.3",      # Gemini (alternative provider)
+    "anthropic>=0.34",        # Claude (alternative provider)
+    "openai>=1.40",           # OpenAI (alternative provider)
     "python-dotenv>=1.0",     # load API keys from a .env file
 ]
 
