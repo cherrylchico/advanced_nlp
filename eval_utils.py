@@ -33,7 +33,7 @@ def evaluate(y_true, y_pred) -> dict:
 
 
 def log_result(model: str, method: str, n_train_labeled, metrics: dict,
-               split: str = "test", person: str = "", notes: str = "",
+               split: str = "test", notes: str = "",
                path: Path | str = RESULTS_CSV) -> pd.DataFrame:
     """Log one result row to results/results.csv and return the full table.
 
@@ -41,36 +41,39 @@ def log_result(model: str, method: str, n_train_labeled, metrics: dict,
     method           e.g. '32-shot', 'augmented', 'llm-generated', 'full-100%'
     n_train_labeled  number of labelled training examples used (32, 1584, ...)
 
-    Upsert semantics: re-logging the same (person, model, method, split) replaces
-    the previous row instead of appending a duplicate, so notebooks can be re-run
-    freely (results.csv once accumulated triplicate rows and had to be hand-deduped).
+    Upsert semantics: re-logging the same (model, method, split, n_train_labeled)
+    replaces the previous row instead of appending a duplicate, so notebooks can be
+    re-run freely (results.csv once accumulated triplicate rows and had to be
+    hand-deduped).
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    row = {"person": person, "model": model, "method": method,
+    row = {"model": model, "method": method,
            "split": split, "n_train_labeled": n_train_labeled, **metrics, "notes": notes}
     df = pd.read_csv(path) if path.exists() else pd.DataFrame()
     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-    # An empty key field round-trips through CSV as NaN, which would not match the
-    # "" of a fresh row and the upsert would duplicate instead of replace.
-    key_cols = ["person", "model", "method", "split"]
-    df[key_cols] = df[key_cols].fillna("")
-    df = df.drop_duplicates(subset=key_cols, keep="last")
+    # Dedup on a normalized string key so mixed CSV/in-memory dtypes compare
+    # consistently: an empty field round-trips through CSV as NaN (would not match
+    # a fresh ""), and n_train_labeled logged as int is read back as float. We build
+    # the key in a throwaway column so the stored dtypes are left untouched.
+    key_cols = ["model", "method", "split", "n_train_labeled"]
+    _key = df[key_cols].fillna("").astype(str).agg("\x00".join, axis=1)
+    df = df[~_key.duplicated(keep="last")]
     df.to_csv(path, index=False)
     return df
 
 
-def latest_result(person: str, model: str, method: str, split: str = "test",
+def latest_result(model: str, method: str, n_train_labeled, split: str = "test",
                   full_row: bool = False, path: Path | str = RESULTS_CSV):
-    """Latest results.csv row for (person, model, method, split) — metrics dict,
-    full row (`full_row=True`), or None. This is what makes the notebooks
+    """Latest results.csv row for (model, method, split, n_train_labeled) — metrics
+    dict, full row (`full_row=True`), or None. This is what makes the notebooks
     resume-aware: delete a row from results.csv to force that experiment to re-run."""
     path = Path(path)
     if not path.exists():
         return None
     r = pd.read_csv(path)
-    r = r[(r["person"] == person) & (r["model"] == model)
-          & (r["method"] == method) & (r["split"] == split)]
+    r = r[(r["model"] == model) & (r["method"] == method) & (r["split"] == split)
+          & (r["n_train_labeled"].astype(str) == str(n_train_labeled))]
     if not len(r):
         return None
     return r.iloc[-1] if full_row else {k: r.iloc[-1][k] for k in METRIC_KEYS}
