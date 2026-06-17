@@ -1,0 +1,6 @@
+,accuracy,accuracy,f1_macro,f1_macro,f1_weighted,f1_weighted,f1_negative,f1_negative,f1_neutral,f1_neutral,f1_positive,f1_positive
+,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std
+model,,,,,,,,,,,,
+bert-base,0.9695,0.0063,0.9584,0.0082,0.9696,0.0063,0.9462,0.013,0.9856,0.0042,0.9433,0.0099
+distilbert,0.9576,0.009,0.9427,0.0121,0.9573,0.0093,0.9348,0.0152,0.9803,0.0052,0.9131,0.0205
+quantized,0.9678,0.0071,0.9573,0.0077,0.9677,0.007,0.9499,0.0068,0.9838,0.005,0.9381,0.0146

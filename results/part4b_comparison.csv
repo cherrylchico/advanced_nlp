@@ -1,0 +1,14 @@
+,bert-base (fp32),"quantized (int8, dynamic)",distilbert (distilled)
+accuracy,0.9695,0.9678,0.9576
+f1_macro,0.9584,0.9573,0.9427
+f1_weighted,0.9696,0.9677,0.9573
+f1_negative,0.9462,0.9499,0.9348
+f1_neutral,0.9856,0.9838,0.9803
+f1_positive,0.9433,0.9381,0.9131
+f1_macro_retained_%,100.0,99.9,98.4
+params_M,109.5,23.9,67.0
+size_MB,438.0,181.5,267.9
+size_vs_bert,1.0x,2.4x,1.6x
+latency_ms,20.3,110.0,12.0
+speedup_vs_bert,1.0x,0.2x,1.7x
+runtime_s,160.8,0.3,248.7
