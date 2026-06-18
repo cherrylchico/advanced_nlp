@@ -20,6 +20,8 @@ Notebook Submission:
 
 ## Executive Summary
 
+> _AI disclosure: the objective, findings, and ideas in this summary are our own.‍ An AI assistant was used only to edit the structure and wording.‍ AI-assisted text is watermarked per the course convention._
+
 **Objective**
 
 Our task is to classify financial news sentences into sentiment (positive, negative, or neutral) using the Financial PhraseBank introduced by Malo et.‍ al (2014).‍ What uniquely defines this dataset are the financial words which have inherent sentiment polarity (e.g.‍ profit is positive while loss is negative).‍ This polarity can be strengthened or reverse through directional words (e.g.‍ increased profits is strengthened positive, while decreased profits is switched to negative.)
