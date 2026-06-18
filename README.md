@@ -1,7 +1,5 @@
-# 22DM015 Final Project — Financial sentiment with limited labeled data
-
-Contributors:
-
+# 22DM015 Final Project — Text Classification with limited labeled data
+18 June 2026
 - Xianrui Cao
 - Cherryl Chico
 - Xiaoyan Wang
@@ -10,68 +8,30 @@ Contributors:
 Dataset: [`takala/financial_phrasebank`](https://huggingface.co/datasets/takala/financial_phrasebank),
 config `sentences_allagree` (2,264 sentences, 3 classes: 0=negative, 1=neutral, 2=positive).‍
 
-## Repo layout
-```
-data_utils.py     # canonical loader + split logic (Person D owns)
-eval_utils.py     # shared evaluate() + log_result()/latest_result() -> results/results.csv
-data/             # COMMITTED shared splits (train/val/test/labeled_32) — do not re-split
-results/          # results.csv, the merged scoreboard for Part 3/4 (created on first log)
-notebooks/        # one notebook per person (full implementations)
-.cache/           # throwaway training output (ignored) + llm_responses_*.csv (COMMITTED)
-```
 
-## The shared data contract (decided by Person D)
-- **Splits:** stratified **70/10/20** train/val/test, `SEED=618`.‍ Sizes: train 1584, val 227, test 453.‍
-- **32-shot:** balanced sample from *train only* — **11 negative / 10 neutral / 11 positive**.‍
-- **Why files, not just a seed:** a seed is reproducible within one notebook, but across 4 people /
-  machines / library versions shuffle behavior drifts.‍ The CSVs in `data/` are the source of truth;
-  the seed only documents how they were made.‍ **Don't re-split — load the CSVs.**
-- "Unlabelled" data for Part 2 = train minus the 32 (`du.unlabeled_pool`).‍
-- Part 3 percentage curves: `du.subset_by_fraction(train, frac)`.‍
+Notebook Submission:
 
-## Setup
-All dependencies for all four notebooks are pinned in `pyproject.toml` / `uv.lock`:
-```bash
-uv sync          # creates .venv (Python 3.12) and installs the locked versions
-```
-Then point your IDE / Jupyter at the `.venv` interpreter (`uv run jupyter lab` also works).‍
-Use Python 3.11–3.12, not 3.14 (no torch wheels there yet).‍
+1.‍ [`dataprep_aug`](notebooks/dataprep_aug.ipynb) — Data preparation: builds the train/val/test split used by **all** parts, and produces the augmented data needed for Part 2.‍ Run this first.‍
+2.‍ [`part1`](notebooks/part1.ipynb) — Part 1: Setting Up the Problem.‍
+3.‍ [`part2`](notebooks/part2.ipynb) — Part 2: Data Scientist Challenge.‍
+4.‍ [`part2_zeroshot_code`](notebooks/part2_zeroshot_code.ipynb) — Part 2c: Zero-Shot Learning with LLM.‍
+5.‍ [`part3`](notebooks/part3.ipynb) — Part 3: State of the Art Comparison.‍
+6.‍ [`part4`](notebooks/part4.ipynb) — Part 4: Model Distillation / Quantization.‍
 
-## Workflow
-1.‍ Person D runs `notebooks/dataprep_aug.ipynb` → regenerates & commits `data/`.‍
-2.‍ A/B/C load via `du.load_splits()` and report metrics with `eu.log_result(...)`.‍
-3.‍ Part 3/4 read `results/results.csv` to compare every model on the same test set.‍
+## Executive Summary
 
-## Reproducibility
-The notebooks are RESUME-AWARE: every experiment cell first checks `results/results.csv`
-(via `eu.latest_result`) and prints `[cached]` instead of recomputing, so Run All on a
-fresh clone is a fast read-back, not a recomputation.‍ To verify any number from scratch,
-delete its row from `results/results.csv` and re-run the notebook.‍
-- BERT rows: seeded (`SEED=618`) and bit-reproducible on the machine that trained them;
-  cross-machine agreement is approximate (thread count / BLAS differences), which is why
-  the result artifacts are committed — same rationale as committing the data splits.‍
-- Claude rows (`zero-shot`/`few-shot`): LLM APIs are nondeterministic and the model
-  accepts no sampling parameters, so the committed `.cache/llm_responses_*.csv` is the
-  exact-reproduction artifact — re-running uses it and needs no API key.‍ Fresh API runs
-  need `ANTHROPIC_API_KEY` in the environment (never committed; `.env` is gitignored).‍
+**Objective**
 
-## AI-use disclosure (watermarking)
-The course requires AI-assisted code/text to be disclosed and watermarked.‍ This repo uses
-`add_watermark.py` (`AGLLM` token in code, invisible U+200D after sentences in prose) plus
-`AGENTS.md` / `.github/copilot-instructions.md` to instruct AI assistants to self-mark.‍
+Our task is to classify financial news sentences into sentiment (positive, negative, or neutral) using the Financial PhraseBank introduced by Malo et.‍ al (2014).‍ What uniquely defines this dataset are the financial words which have inherent sentiment polarity (e.g.‍ profit is positive while loss is negative).‍ This polarity can be strengthened or reverse through directional words (e.g.‍ increased profits is strengthened positive, while decreased profits is switched to negative.)
+We use the all-agree subset (2,264 sentences), which is class-imbalanced (61% neutral, 25% positive, 13% negative).‍
 
-Enable the auto-watermark git hook **once per clone**:
-```bash
-git config core.hooksPath .githooks
-```
-It watermarks every staged `.py/.ipynb/.md/.toml` on commit.‍ For genuinely human-authored
-content (analysis, methodology, interpretation — which must stay student-authored and
-UNmarked), commit that file with `git commit --no-verify`.‍ Verify markers anytime:
-`python add_watermark.py --check notebooks *.py *.md`.‍
+**Main findings and results**
 
-Caveat: this follows the instructor's `AIinstructions.md`, but their original scripts
-weren't in the course repo — confirm the exact required format with the instructor.‍
-
-## Course rules baked into the templates
-Fixed seed at the top of every notebook; AI-generated code/text must be watermarked & declared;
-interpretation/analysis must be student-authored.‍
+1.‍ **The task is largely separable by direction alone.** A simple rule-based classifier using only directional words reaches ~0.83 accuracy and ~0.79 macro-F1 which is already close to the published Malo et al.‍ (2014) baseline.‍ This implies that the data is, in this sense, "simple."
+2.‍ **Very little labeled data goes a long way.** With as few as 32 labeled examples, a fine-tuned BERT already beats both random baselines by a wide margin.‍
+3.‍ **LLM-generated augmentation strongly helps in the low-data regime.** Adding LLM-generated examples to a small labeled set significantly improves performance.‍ At 1% of the data, macro-F1 rises from 0.48 (real-only) to 0.83.‍
+4.‍ **Performance scales but plateaus, so 100% of the data is unnecessary.** Gains shoot up with training up to ~25% of the train data and flatten after ~50%, already producing near 100% accuracy well before the full dataset.‍
+5.‍ **The remaining errors fall in two hard cases.** Sentences where the financial word and the directional word oppose each other (the sentiment "switches"), and sentences with no directional or financial signal at all both need real context rather than these cues.‍
+6.‍ **On the full dataset, LLM augmentation adds little and meets the published SOTA.** Adding LLM-generated data to the full set gives only a marginal gain, landing on par with and by one metric just below the state of the art (EnhancedFinSentiBERT: FinBERT augmented with financial dictionaries and neutral-feature extraction).‍
+7.‍ **A zero-shot LLM is the overall best.** The single strongest result in our comparison comes from a zero-shot LLM (Claude), which performs better even against our full-data fine-tuned BERT which is the best approach we found for this financial-sentiment task.‍
+8.‍ **Compression makes the model deployable at little accuracy cost.** Distilling the fine-tuned BERT into a smaller DistilBERT student cuts inference latency by ~1.7× (and on-disk size by ~1.6×) for only a small accuracy cost (~1.6 macro-F1 points), keeping performance comparable to the full fine-tuned BERT.‍ Dynamic int8 quantization further shrinks the model ~2.4× with virtually no accuracy loss, though on our hardware it buys memory rather than speed.‍
