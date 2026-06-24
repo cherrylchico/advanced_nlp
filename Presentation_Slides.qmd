@@ -149,7 +149,7 @@ The misses are the cases direction alone can't reach — they need a **language 
 
 ---
 
-## Models with 32 labels {.smaller}
+## Training with limited data {.smaller}
 
 We start from three references: a random floor, the rule-based lexicon, and the zero-shot LLM ceiling.
 
@@ -157,50 +157,82 @@ We start from three references: a random floor, the rule-based lexicon, and the 
 
 ---
 
-## Models with 32 labels {.smaller}
+## Training with limited data {.smaller}
 
-**Frozen BERT + linear probe (32)** — adapting only the head barely beats random.
+**32 labels** — [linear probe]{style="color:#ea580c;font-weight:700"} (head only) barely beats random; [full fine-tune]{style="color:#2563eb;font-weight:700"} helps but still **loses to the rule-based lexicon**.
 
 ![](figures/models32_stage2.png){width="86%" fig-align="center"}
 
 ---
 
-## Models with 32 labels {.smaller}
+## Training with limited data {.smaller}
 
-**Full fine-tune (32)** — adapting the body helps, but still **loses to the rule-based lexicon**.
+**Back-translation (229)** — paraphrases lift both, and [full fine-tune]{style="color:#2563eb;font-weight:700"} (0.72) now edges past the lexicon.
 
 ![](figures/models32_stage3.png){width="86%" fig-align="center"}
 
 ---
 
-## Models with 32 labels {.smaller}
+## Training with limited data {.smaller}
 
-**Augment the 32** — back-translation paraphrases get close; **LLM-generated data wins** (best Part-2 BERT).
+**LLM-generated (229)** — [full fine-tune]{style="color:#2563eb;font-weight:700"} jumps to **0.85** and nearing the zero-shot ceiling.
 
 ![](figures/models32_stage4.png){width="86%" fig-align="center"}
 
 ::: {style="font-size:0.7em"}
-Few-shot fine-tuning on 32 is the wrong tool; **information, not model size, was the bottleneck** — and the gains show up most on the rare **positive/negative** classes.
+[Full fine-tune]{style="color:#2563eb;font-weight:700"} beats the [linear probe]{style="color:#ea580c;font-weight:700"} everywhere — adapt the body, not the head. **Information, not model size, was the bottleneck** — and the gains land hardest on the rare **positive / negative** classes.
 :::
 
 ---
 
-## The data-scaling curve {.smaller}
+## How much data does BERT need? {.smaller}
 
-How much data does BERT actually need? Train on 1 / 10 / 25 / 50 / 75 / 100%.
+Full fine-tune on **1 / 10 / 25 / 50 / 75 / 100 %** of the training data.
 
-| Fraction | ~labels | macro-F1 |
-|:--:|:--:|:--:|
-| 1%  | 15  | **0.479** ← collapse |
-| 10% | 158 | **0.879** ← beats rules |
-| 25% | 396 | 0.944 |
-| 50% | 792 | 0.960 |
-| 75% | 1188 | 0.960 |
-| 100% | 1584 | **0.958** |
+![](figures/datacurve_stage1.png){width="84%" fig-align="center"}
 
-- **Steep climb, then a noisy plateau.** Only collapse is at 1% (15 labels) — the imbalance trap, not a phase transition.
-- **Rules → BERT crossover by ~158 labels** (10% BERT 0.879 > rules 0.788). Most gains realised by ~25%; flat and noisy after.
-- Full data **0.958** comes within ~2 points of the LLM's 0.978 — **closes most of the gap, does not tie.** (Protocol: 20 epochs, maxlen 128, single seed.)
+::: {style="font-size:0.72em"}
+**Steep climb, then plateau** — collapses only at 1% (F1-negative = 0), most gains by ~25%.
+:::
+
+---
+
+## How much data does BERT need? {.smaller}
+
+Add the **360 LLM-generated** sentences to each fraction (Part 3c).
+
+![](figures/datacurve_stage2.png){width="84%" fig-align="center"}
+
+::: {style="font-size:0.72em"}
+[**+ LLM-generated**]{style="color:#16a34a;font-weight:700"} **rescues the low-data regime** — at 1% it lifts macro 0.48 → 0.83; the gap closes as real data grows.
+:::
+
+---
+
+## Closing the gap {.smaller}
+
+| Model | macro-F1 | F1-negative | F1-neutral | F1-positive |
+|---|:--:|:--:|:--:|:--:|
+| Rule-based lexicon | 0.788 | 0.815 | 0.876 | 0.674 |
+| All-LLM BERT (32 + LLM-gen, n=392) | 0.874 | 0.855 | 0.946 | 0.822 |
+| FinBERT (Araci 2019) | 0.95 | — | — | — |
+| **Full data + LLM-gen (n=1944)** | **0.965** | **0.944** | **0.993** | **0.960** |
+
+---
+
+## What we still miss {.smaller}
+
+Even at 0.965, BERT still trips where **meaning beats the surface word**. ([financial word]{style="color:#2563eb;font-weight:600"} · [directional word]{style="color:#ea580c;font-weight:600"})
+
+::: {style="font-size:0.82em"}
+[**TRUE negative**]{style="color:#d9534f;font-weight:700"} → [**PRED positive**]{style="color:#5cb85c;font-weight:700"} ✗ — **direction reverses the surface word**
+
+> …grappling with [higher]{style="color:#ea580c;font-weight:600"} oil and gas prices, which have [pushed up]{style="color:#ea580c;font-weight:600"} the [cost]{style="color:#2563eb;font-weight:600"} of energy, raw materials and transportation.
+
+[**TRUE positive**]{style="color:#5cb85c;font-weight:700"} → [**PRED negative**]{style="color:#d9534f;font-weight:700"} ✗ — **no directional word, anchored on the polar term**
+
+> Pre-tax [loss]{style="color:#2563eb;font-weight:600"} totaled EUR 0.3 mn, compared to a [loss]{style="color:#2563eb;font-weight:600"} of EUR 2.2 mn in the first quarter of 2005.
+:::
 
 ---
 
