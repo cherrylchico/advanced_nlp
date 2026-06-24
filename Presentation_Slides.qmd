@@ -15,7 +15,6 @@ format:
     height: 720
     center-title-slide: true
     code-line-numbers: false
-    footer: "22DM015 — Financial PhraseBank · BERT track"
 ---
 
 ## The task {.smaller}
@@ -236,76 +235,75 @@ Even at 0.965, BERT still trips where **meaning beats the surface word**. ([fina
 
 ---
 
-## Synthesis: the right tool per label budget {.smaller}
+## Shipping it cheaply {.smaller}
+
+Our best BERT is accurate but **heavy**: ~110M params, **438 MB**, ~20 ms/sentence. For deployment we want it **smaller / faster without losing F1**.
+
+We explore two compression methods:
+
+- [**Distillation**]{style="color:#16a34a;font-weight:700"} — a small **student** (DistilBERT, 6 layers) is trained to mimic our full BERT, the **teacher**. Lever for **speed**.
+- [**Quantization**]{style="color:#ea580c;font-weight:700"} — store weights in **int8** instead of fp32 (dynamic, post-training). Lever for **memory**.
+
+> Question: how much accuracy do we give up — and on which classes?
+
+---
+
+## Compression keeps the accuracy {.smaller}
+
+![](figures/part4_box.png){width="80%" fig-align="center"}
+
+::: {style="font-size:0.72em"}
+[**int8**]{style="color:#ea580c;font-weight:700"} tracks the teacher (**99.9%** of macro-F1 retained); the [**DistilBERT student**]{style="color:#16a34a;font-weight:700"} costs ~1.5 macro points, almost all of it on the rare **positive** class. 5 seeds → the spread is real, not a single lucky run.
+:::
+
+---
+
+## Size vs speed vs accuracy {.smaller}
+
+| | Teacher BERT (fp32) | [DistilBERT (student)]{style="color:#16a34a;font-weight:700"} | [int8 (dynamic)]{style="color:#ea580c;font-weight:700"} |
+|---|:--:|:--:|:--:|
+| macro-F1 (5-seed mean) | 0.958 | 0.943 | 0.957 |
+| macro-F1 retained | 100% | 98.4% | **99.9%** |
+| Parameters | 109.5M | 67.0M | **23.9M** |
+| Size on disk | 438 MB | 268 MB (1.6× smaller) | **181 MB (2.4× smaller)** |
+| Latency / sentence | 20.3 ms | **12.0 ms (1.7× faster)** | 110 ms (*slower*) |
+
+- **Distillation buys speed** — 1.7× faster, ~½ the params, ~1.5 F1 cost.
+- **Quantization buys memory, not latency** — 2.4× smaller, but int8 has **no kernel acceleration on this CPU**, so it runs *slower*.
+
+---
+
+## Where the student loses — and how to close it {.smaller}
 
 ::: {.columns}
 ::: {.column width="48%"}
-**The thesis**
+**The deficiency**
 
-- 0 labels, cheap & transparent → **lexicon (0.788)**
-- 0 labels, max accuracy → **LLM (0.978)**
-- A few hundred labels → **local BERT (0.958–0.965)** *closes most of the gap*
-
-The LLM keeps a ~1–2 point edge — but that edge **shrinks as labels grow** and is itself suspect (below).
+- [DistilBERT]{style="color:#16a34a;font-weight:700"} loses **0.016 macro-F1** — small but real.
+- Almost all of it on the **positive** class (0.94 → 0.91); 6 layers blur the **positive ↔ neutral** boundary first.
+- Cause: **logit-only** distillation on the **same 792 examples** — no feature transfer, no extra data.
 :::
-::: {.column width="52%"}
-**Why the gap is smaller than it looks — the LLM's 0.978 is suspicious**
+::: {.column width="4%"}
+:::
+::: {.column width="48%"}
+**How to close it**
 
-1. **Contamination** — FPB is a public 2014 benchmark, almost certainly in pretraining → partly memorisation, so 0.978 is likely inflated.
-2. **Few-shot lever inert** — adding our 32 examples in-context changed **zero** predictions.
-3. **Black-box, paid, latency** — not reproducible without a cache.
-
-The near-matching BERT (0.958, up to 0.965 with LLM-gen data) is free, offline, deterministic, auditable, contamination-free.
-**Within ~2 points — and the one you can actually ship.**
+- **Feature-based KD** (TinyBERT / PKD) — transfer hidden states, not just logits.
+- **More transfer data** — teacher soft-labels the LLM-generated / unlabelled text.
+- **Protect positive** — sweep `T`/`alpha`, oversample the class.
+- **Stack levers** — distil → int8; QLoRA for memory.
 :::
 :::
 
 ---
 
-## Deployment, limitations & next steps {.smaller}
+## Thank you {.center}
 
-::: {.columns}
-::: {.column width="50%"}
-**Part 4 — compression (5-seed means)**
+### Questions?
 
-| Model | Size | Speed | macro-F1 |
-|---|:--:|:--:|:--:|
-| Teacher BERT | 1× | 1× | 0.958 |
-| **DistilBERT (distill)** | ~½ | ~1.7× | 0.943 |
-| **int8 (quantize)** | ~2.4× smaller | *slower* | ~0.957 |
+**Xianrui Cao · Cherryl Chico · Xiaoyan Wang · Elvis Casco**
 
-- Distillation = lever for **speed** (small, real quality cost).
-- Quantization buys **memory, not latency** on this hardware.
-:::
-::: {.column width="50%"}
-**Honest limitations**
-
-- BERT curve = **single seed** (20 epochs, maxlen 128) → read the plateau as a noisy trend.
-- `allagree` is the **easiest** config → numbers soften on ambiguous data.
-- LLM 0.978 = a **likely-contaminated upper bound**.
-
-**Next steps**
-
-- SetFit for the 32-label regime.
-- Multiple seeds + confidence bands.
-- Domain-pretrained FinBERT vs base BERT.
-:::
-:::
-
----
-
-## Takeaways {.smaller}
-
-::: {.incremental}
-- **The right model depends on the label budget, not on a leaderboard.**
-- At 32 labels a **free lexicon beats fine-tuned BERT** — so don't fine-tune at 32 labels.
-- BERT **beats the rules by ~158 labels** and at full data reaches **0.958 (up to 0.965 with LLM-gen data)** — within ~2 points of the zero-shot LLM (0.978), locally, auditably, contamination-free.
-- The LLM keeps a small edge — but it **shrinks as labels grow** and likely reflects **benchmark contamination**, so the local model is the one you can trust and ship.
-:::
-
-::: {.fragment}
-**Thank you — happy to take questions.**
-:::
+*22DM015 — Advanced Methods in NLP · Financial PhraseBank · BERT track*
 
 ---
 
