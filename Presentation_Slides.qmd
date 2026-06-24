@@ -1,0 +1,308 @@
+---
+title: "Financial Sentiment with Limited Labels"
+subtitle: "Text classification on Financial PhraseBank"
+author: "Xianrui Cao · Cherryl Chico · Xiaoyan Wang · Elvis Casco"
+institute: "22DM015 Advanced Methods in NLP"
+date: 2026-06-25
+format:
+  revealjs:
+    theme: simple
+    embed-resources: true 
+    slide-number: true
+    transition: fade
+    incremental: false
+    width: 1280
+    height: 720
+    center-title-slide: true
+    code-line-numbers: false
+    footer: "22DM015 — Financial PhraseBank · BERT track"
+---
+
+## The task {.smaller}
+
+Sentence-level **financial sentiment** — classify a news sentence as
+**negative / neutral / positive**.
+
+- **Dataset:** Financial PhraseBank (`takala/financial_phrasebank`) — ~2,300 sentences, `allagree` config (unanimous annotators).
+- **Business case:** signal extraction — an analyst desk or trading system flags negative/positive headlines automatically.
+- **Annotation guideline:** labels reflect the *viewpoint of an investor* — each sentence is judged by its likely impact on the **future stock price**
+
+
+| Class | Example sentence |
+|---|---|
+| negative | "Operating profit *fell* to EUR 35.4 mn from EUR 68.8 mn." |
+| neutral  | "The company has its head office in Helsinki." |
+| positive | "Operating profit *rose* to EUR 14.5 mn from EUR 10.2 mn." |
+
+
+---
+
+## Why the data is tricky {.smaller}
+
+::: {.columns}
+::: {.column width="50%"}
+**1. Imbalanced**
+
+![](figures/class_balance.png){width="92%" fig-alt="Class distribution: 61% neutral, 25% positive, 13% negative"}
+
+:::
+::: {.column width="50%"}
+**2. Contextual, not lexical**
+
+- The data contains **financial words with inherent polarity**, and that **polarity can switch depending on the directional word** it is used with.
+
+[financial word]{style="color:#2563eb;font-weight:600"} · [directional word]{style="color:#ea580c;font-weight:600"}
+
+- **positive** — net [sales]{style="color:#2563eb;font-weight:600"} [increased]{style="color:#ea580c;font-weight:600"} by 5.2% to EUR 205.5 mn, and operating [profit]{style="color:#2563eb;font-weight:600"} by 34.9% to EUR 23.5 mn.
+- **negative** — the growth [margin]{style="color:#2563eb;font-weight:600"} [slowed down]{style="color:#ea580c;font-weight:600"} due to the financial crisis.
+- **neutral** — Tiimari … generated a [turnover]{style="color:#2563eb;font-weight:600"} of 76.5 mln eur in 2005. 
+
+:::
+:::
+
+---
+
+## Data preparation & augmentation {.smaller}
+
+::: {.columns}
+::: {.column width="45%"}
+**Split & few-shot set**
+
+- **70 / 10 / 20** train / val / test, **stratified by sentiment**
+- **Balanced 32-label set** sampled from *train*
+
+**Two augmentations from the 32**
+
+- **Back-translation (no LLM)** — MarianMT through **7 pivot languages** (es, de, ru, fi, tl, ar, zh)
+- **LLM-generated** — Groq `llama-3.3-70b`, **temp 0.95** for variety with 3 same-class anchors per call
+  - **Prompt** — mimic FPB single-sentence news; label from the **investor's POV**; vary sentiment *strength*; **fictional-but-realistic** company names.
+:::
+::: {.column width="5%"}
+:::
+::: {.column width="50%"}
+**Did the augmentation meet our criteria?**
+
+| Criterion | Back-translation | LLM |
+|---|:--:|:--:|
+| New sentences | 197 | **360** |
+| Sentiment preserved | ✅ | ✅ |
+| Numbers preserved | ✅ guard | ✅ prompt |
+| Lexical diversity (new words) | ~200 | **~1000** |
+| Structural variety (distinct-3) | 0.57 | **0.83** |
+
+*distinct-3 = unique trigrams ÷ total trigrams (1 = all distinct, 0 = all repeated).*
+
+:::
+:::
+
+---
+
+## Benchmarks: floor and ceiling {.smaller}
+
+
+| Benchmark | macro-F1 | F1-negative | F1-neutral | F1-positive |
+|---|:--:|:--:|:--:|:--:|
+| Always neutral | 0.253 | 0.000 | 0.761 | 0.000 |
+| Prior-weighted random | 0.328 | 0.108 | 0.604 | 0.273 |
+| **FinBERT**^[Araci (2019), *FinBERT: Financial Sentiment Analysis with Pre-trained Language Models*, arXiv:1908.10063 — BERT further-pretrained on a financial corpus, then fine-tuned on Financial PhraseBank. Macro-F1 reported on the 100%-agreement subset.] | **0.95** | — | — | — |
+
+---
+
+## A directional rule already goes a long way {.smaller}
+
+![](figures/top_words_sentiment.png){width="98%" fig-align="center"}
+
+::: {style="font-size:0.9em"}
+- The **directional words** already separate the classes while inherently-polar financial words show up across **all three**, thus a **rule-based lexicon**.
+:::
+
+---
+
+## Benchmarks: the rule-based lexicon slots in {.smaller}
+
+| Benchmark | macro-F1 | F1-negative | F1-neutral | F1-positive |
+|---|:--:|:--:|:--:|:--:|
+| Always neutral | 0.253 | 0.000 | 0.761 | 0.000 |
+| Prior-weighted random | 0.328 | 0.108 | 0.604 | 0.273 |
+| **Rule-based lexicon** | **0.788** | **0.815** | **0.876** | 0.674 |
+| FinBERT^[Araci (2019), arXiv:1908.10063 — BERT pretrained on a financial corpus, fine-tuned on FPB; macro-F1 on the 100%-agreement subset.] | 0.95 | — | — | — |
+
+---
+
+## Where the rule misses {.smaller}
+
+The misses are the cases direction alone can't reach — they need a **language model**. ([financial word]{style="color:#2563eb;font-weight:600"} · [directional word]{style="color:#ea580c;font-weight:600"})
+
+::: {style="font-size:0.82em"}
+[**TRUE negative**]{style="color:#d9534f;font-weight:700"} → [**PRED neutral**]{style="color:#9ca3af;font-weight:700"} ✗ — **direction implied, not stated**
+
+> Operating [loss]{style="color:#2563eb;font-weight:600"} totalled EUR 12.7 mn, compared to a [profit]{style="color:#2563eb;font-weight:600"} of EUR 17.7 mn in the first half of 2008.
+
+[**TRUE neutral**]{style="color:#9ca3af;font-weight:700"} → [**PRED positive**]{style="color:#5cb85c;font-weight:700"} ✗ — **direction unrelated to the financial word**
+
+> These developments partly reflect the government's [higher]{style="color:#ea580c;font-weight:600"} activity in the field of [dividend]{style="color:#2563eb;font-weight:600"} policy.
+
+[**TRUE positive**]{style="color:#5cb85c;font-weight:700"} → [**PRED neutral**]{style="color:#9ca3af;font-weight:700"} ✗ — **no direction at all**
+
+> KONE … received a major [order]{style="color:#2563eb;font-weight:600"} to supply all elevators and escalators for the Watermark Place project in London.
+:::
+
+---
+
+## Models with 32 labels {.smaller}
+
+We start from three references: a random floor, the rule-based lexicon, and the zero-shot LLM ceiling.
+
+![](figures/models32_stage1.png){width="86%" fig-align="center"}
+
+---
+
+## Models with 32 labels {.smaller}
+
+**Frozen BERT + linear probe (32)** — adapting only the head barely beats random.
+
+![](figures/models32_stage2.png){width="86%" fig-align="center"}
+
+---
+
+## Models with 32 labels {.smaller}
+
+**Full fine-tune (32)** — adapting the body helps, but still **loses to the rule-based lexicon**.
+
+![](figures/models32_stage3.png){width="86%" fig-align="center"}
+
+---
+
+## Models with 32 labels {.smaller}
+
+**Augment the 32** — back-translation paraphrases get close; **LLM-generated data wins** (best Part-2 BERT).
+
+![](figures/models32_stage4.png){width="86%" fig-align="center"}
+
+::: {style="font-size:0.7em"}
+Few-shot fine-tuning on 32 is the wrong tool; **information, not model size, was the bottleneck** — and the gains show up most on the rare **positive/negative** classes.
+:::
+
+---
+
+## The data-scaling curve {.smaller}
+
+How much data does BERT actually need? Train on 1 / 10 / 25 / 50 / 75 / 100%.
+
+| Fraction | ~labels | macro-F1 |
+|:--:|:--:|:--:|
+| 1%  | 15  | **0.479** ← collapse |
+| 10% | 158 | **0.879** ← beats rules |
+| 25% | 396 | 0.944 |
+| 50% | 792 | 0.960 |
+| 75% | 1188 | 0.960 |
+| 100% | 1584 | **0.958** |
+
+- **Steep climb, then a noisy plateau.** Only collapse is at 1% (15 labels) — the imbalance trap, not a phase transition.
+- **Rules → BERT crossover by ~158 labels** (10% BERT 0.879 > rules 0.788). Most gains realised by ~25%; flat and noisy after.
+- Full data **0.958** comes within ~2 points of the LLM's 0.978 — **closes most of the gap, does not tie.** (Protocol: 20 epochs, maxlen 128, single seed.)
+
+---
+
+## Synthesis: the right tool per label budget {.smaller}
+
+::: {.columns}
+::: {.column width="48%"}
+**The thesis**
+
+- 0 labels, cheap & transparent → **lexicon (0.788)**
+- 0 labels, max accuracy → **LLM (0.978)**
+- A few hundred labels → **local BERT (0.958–0.965)** *closes most of the gap*
+
+The LLM keeps a ~1–2 point edge — but that edge **shrinks as labels grow** and is itself suspect (below).
+:::
+::: {.column width="52%"}
+**Why the gap is smaller than it looks — the LLM's 0.978 is suspicious**
+
+1. **Contamination** — FPB is a public 2014 benchmark, almost certainly in pretraining → partly memorisation, so 0.978 is likely inflated.
+2. **Few-shot lever inert** — adding our 32 examples in-context changed **zero** predictions.
+3. **Black-box, paid, latency** — not reproducible without a cache.
+
+The near-matching BERT (0.958, up to 0.965 with LLM-gen data) is free, offline, deterministic, auditable, contamination-free.
+**Within ~2 points — and the one you can actually ship.**
+:::
+:::
+
+---
+
+## Deployment, limitations & next steps {.smaller}
+
+::: {.columns}
+::: {.column width="50%"}
+**Part 4 — compression (5-seed means)**
+
+| Model | Size | Speed | macro-F1 |
+|---|:--:|:--:|:--:|
+| Teacher BERT | 1× | 1× | 0.958 |
+| **DistilBERT (distill)** | ~½ | ~1.7× | 0.943 |
+| **int8 (quantize)** | ~2.4× smaller | *slower* | ~0.957 |
+
+- Distillation = lever for **speed** (small, real quality cost).
+- Quantization buys **memory, not latency** on this hardware.
+:::
+::: {.column width="50%"}
+**Honest limitations**
+
+- BERT curve = **single seed** (20 epochs, maxlen 128) → read the plateau as a noisy trend.
+- `allagree` is the **easiest** config → numbers soften on ambiguous data.
+- LLM 0.978 = a **likely-contaminated upper bound**.
+
+**Next steps**
+
+- SetFit for the 32-label regime.
+- Multiple seeds + confidence bands.
+- Domain-pretrained FinBERT vs base BERT.
+:::
+:::
+
+---
+
+## Takeaways {.smaller}
+
+::: {.incremental}
+- **The right model depends on the label budget, not on a leaderboard.**
+- At 32 labels a **free lexicon beats fine-tuned BERT** — so don't fine-tune at 32 labels.
+- BERT **beats the rules by ~158 labels** and at full data reaches **0.958 (up to 0.965 with LLM-gen data)** — within ~2 points of the zero-shot LLM (0.978), locally, auditably, contamination-free.
+- The LLM keeps a small edge — but it **shrinks as labels grow** and likely reflects **benchmark contamination**, so the local model is the one you can trust and ship.
+:::
+
+::: {.fragment}
+**Thank you — happy to take questions.**
+:::
+
+---
+
+## Backup — full scoreboard {.smaller visibility="uncounted"}
+
+| Model | Labels | macro-F1 | Notes |
+|---|:--:|:--:|---|
+| Random | — | 0.328 | floor |
+| Majority neutral | — | 0.25 (acc 0.61) | no skill |
+| Rule-based lexicon | 0 | 0.788 | strong neg, weak pos |
+| Frozen BERT probe | 32 | 0.379 | ≈ random |
+| BERT fine-tuned | 32 | 0.554 | loses to rules |
+| Back-translation → BERT | 229 | 0.716 | no new info |
+| LLM-generated → BERT | 392 | 0.874 | best Part-2 |
+| BERT (full data) | 1584 | 0.958 | within ~2 pts of LLM |
+| BERT + LLM-gen (full) | 1944 | 0.965 | best local |
+| LLM zero-shot (Claude) | 0 | 0.978 | contamination caveat |
+
+---
+
+## Backup — per-class diagnostics {.smaller visibility="uncounted"}
+
+**Rule-based baseline — where it fails**
+
+- NEGATIVE F1 **0.815** (strong) · NEUTRAL strong · POSITIVE F1 **0.674** (weak)
+- Failure mode: positives leak into neutral (financial positivity is phrased indirectly).
+
+**Low-data BERT — opposite failure**
+
+- Collapses toward the **majority (neutral)** class at small fractions.
+
+> Per-class F1 is the single best diagnostic in the project — it shows *which* class each model misses, which a single macro number hides.
