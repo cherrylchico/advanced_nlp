@@ -198,7 +198,7 @@ Full fine-tune on **1 / 10 / 25 / 50 / 75 / 100 %** of the training data.
 
 ## How much data does BERT need? {.smaller}
 
-Add the **360 LLM-generated** sentences to each fraction (Part 3c).
+Add the **360 LLM-generated** sentences to each fraction.
 
 ![](figures/datacurve_stage2.png){width="84%" fig-align="center"}
 
@@ -264,7 +264,7 @@ We explore two compression methods:
 |---|:--:|:--:|:--:|
 | macro-F1 (5-seed mean) | 0.958 | 0.943 | 0.957 |
 | macro-F1 retained | 100% | 98.4% | **99.9%** |
-| Parameters | 109.5M | 67.0M | **23.9M** |
+| Parameters | 109.5M | 67.0M | **23.9M**^[This counts only the parameters still stored as fp32 (the embeddings) — dynamic int8 quantizes the `Linear` layers, whose weights are no longer counted as parameters. The model still holds the same ~110M weights; quantization changes their precision, not their count.] |
 | Size on disk | 438 MB | 268 MB (1.6× smaller) | **181 MB (2.4× smaller)** |
 | Latency / sentence | 20.3 ms | **12.0 ms (1.7× faster)** | 110 ms (*slower*) |
 
@@ -288,10 +288,10 @@ We explore two compression methods:
 ::: {.column width="48%"}
 **How to close it**
 
-- **Feature-based KD** (TinyBERT / PKD) — transfer hidden states, not just logits.
+- **Feature-based distillation** — transfer hidden states, not just logits (e.g. TinyBERT).
 - **More transfer data** — teacher soft-labels the LLM-generated / unlabelled text.
-- **Protect positive** — sweep `T`/`alpha`, oversample the class.
-- **Stack levers** — distil → int8; QLoRA for memory.
+- **Tune T and α** — push more of the teacher's soft signal to the student to protect the positive-vs-neutral boundary.
+- **Combine techniques** - distil for speed, quantize to int8 for memory, and QLoRA to fine-tune under a tight memory budget.
 :::
 :::
 
